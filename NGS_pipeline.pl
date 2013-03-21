@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 use warnings;
 use strict;
+use Cwd;
 use v5.14;
 use lib "/miseqdata/tools/vcftools_0.1.10/perl/";
 usage() unless $#ARGV == 0;
@@ -150,9 +151,10 @@ print join("\n",@steps);
                       LinuxExecute($ExecStatement);
                       $ExecStatement ="perl /miseqdata/tools/annovar/summarize_annovar.pl  $name.FromOnlyOneCaller.indel.annovar.input.txt -buildver hg19 -outfile $name.FromOnlyOneCaller.indel -verdbsnp 137 -ver1000g 1000g2012apr -veresp 6500 -alltranscript -remove /miseqdata/tools/annovar/humandb/";
                       LinuxExecute($ExecStatement);
-
+$curdir  = getcwd();
+system ( "python /miseqdata/GIT/pyWork27/CreateExcelAndCleanUp.py ".$curdir ); 
 };
-   #system ( "mkdir $name; mv $name.* $name;" ); 
+
 
 
 sub usage
