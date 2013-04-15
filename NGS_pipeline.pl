@@ -27,7 +27,10 @@ my $omni      = "$ref_dir/Annotation/Variation/omni.vcf";
 my $hapmap    = "$ref_dir/Annotation/Variation/hapmap.vcf";
 my $mills     = "$ref_dir/Annotation/Variation/indels.vcf";
 my $ref       = "$ref_dir/Sequence/WholeGenomeFasta/ucsc.hg19.fasta";
-my $Gene_Panel = "/miseqdata/Annotation_files/52GenesWithExonCoordinatesPLUS10.bed";
+#my $Gene_Panel = "/miseqdata/Annotation_files/4GeneCranioPanel0228EDITS_PLUS10.bed";
+#my $Gene_Panel = "/miseqdata/Annotation_files/48GeneBedFile0228EDITS_PLUS10.bed";
+#my $Gene_Panel = "/miseqdata/Annotation_files/NoononSyndrome0228EDITS_PLUS10.bed";
+#my $Gene_Panel = "/miseqdata/Annotation_files/RettAngelman0228EDIT_PLUS10.bed
 my @recalibrated_files;
 die "There are no read 1 fastq reads in $reads_dir. The read 1 reads must be formatted as follows: *_R1.fastq.\n" unless ( `ls $reads_dir/*_R1_001.fastq` );
 die "There are no read 2 fastq reads in $reads_dir. The read 2 reads must be formatted as follows: *_R2.fastq.\n" unless ( `ls $reads_dir/*_R2_001.fastq` );
@@ -71,8 +74,8 @@ for ( my $i = 0; $i < @reads; $i += 2 )
                        "samtools index $name.recalibrated.bam",
                        "$GATK_pre UnifiedGenotyper -I $name.recalibrated.bam -nt 5 -R $ref -D $dbsnp -glm SNP -o $name.raw.snvs.GATK.vcf",
                        "$GATK_pre UnifiedGenotyper -I $name.recalibrated.bam -nt 5 -R $ref -D $mills -glm INDEL -o $name.raw.indel.GATK.vcf",
-                       "$GATK_pre VariantFiltration -R $ref --variant $name.raw.snvs.GATK.vcf -o $name.filtered_variants.snvs.GATK.vcf --filterExpression 'QD < 2.0 || MQ < 40.0 || FS > 60.0 || HaplotypeScore > 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0 || DP < 15' --filterName 'GATK_BP_filters' --maskExtension 10 --mask $Gene_Panel --maskName PANEL",
-                       "$GATK_pre VariantFiltration -R $ref  --variant $name.raw.indel.GATK.vcf -o $name.filtered_variants.indel.GATK.vcf --filterExpression 'QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0 || InbreedingCoeff < -0.8' --filterName 'GATK_BP_filters' --maskExtension 10 --mask $Gene_Panel --maskName PANEL",
+                       "$GATK_pre VariantFiltration -R $ref --variant $name.raw.snvs.GATK.vcf -o $name.filtered_variants.snvs.GATK.vcf --filterExpression 'QD < 2.0 || MQ < 40.0 || FS > 60.0 || HaplotypeScore > 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0 || DP < 15' --filterName 'GATK_BP_filters' --mask $Gene_Panel --maskName PANEL",
+                       "$GATK_pre VariantFiltration -R $ref  --variant $name.raw.indel.GATK.vcf -o $name.filtered_variants.indel.GATK.vcf --filterExpression 'QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0 || InbreedingCoeff < -0.8' --filterName 'GATK_BP_filters' --mask $Gene_Panel --maskName PANEL",
                        "samtools mpileup  -uBf  $ref  $name.recalibrated.bam  > $name.mpileup",
                        "bcftools view -bvcg $name.mpileup > $name.bcf",
                        "bcftools view $name.bcf > $name.raw.MPILEUP.vcf",
@@ -151,7 +154,7 @@ print join("\n",@steps);
                       LinuxExecute($ExecStatement);
                       $ExecStatement ="perl /miseqdata/tools/annovar/summarize_annovar.pl  $name.FromOnlyOneCaller.indel.annovar.input.txt -buildver hg19 -outfile $name.FromOnlyOneCaller.indel -verdbsnp 137 -ver1000g 1000g2012apr -veresp 6500 -alltranscript -remove /miseqdata/tools/annovar/humandb/";
                       LinuxExecute($ExecStatement);
-$curdir  = getcwd();
+my $curdir  = getcwd();
 system ( "python /miseqdata/GIT/pyWork27/CreateExcelAndCleanUp.py ".$curdir ); 
 };
 
