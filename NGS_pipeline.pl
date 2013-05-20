@@ -31,6 +31,8 @@ my $ref       = "$ref_dir/Sequence/WholeGenomeFasta/ucsc.hg19.fasta";
 #my $Gene_Panel = "/miseqdata/Annotation_files/48GeneBedFile0228EDITS_PLUS10.bed";
 #my $Gene_Panel = "/miseqdata/Annotation_files/NoononSyndrome0228EDITS_PLUS10.bed";
 #my $Gene_Panel = "/miseqdata/Annotation_files/RettAngelman0228EDIT_PLUS10.bed
+my $Gene_Panel = "/miseqdata/Annotation_files/cardiomyoPanelExons_edit042213_SortedPLUS10.bed";
+
 my @recalibrated_files;
 die "There are no read 1 fastq reads in $reads_dir. The read 1 reads must be formatted as follows: *_R1.fastq.\n" unless ( `ls $reads_dir/*_R1_001.fastq` );
 die "There are no read 2 fastq reads in $reads_dir. The read 2 reads must be formatted as follows: *_R2.fastq.\n" unless ( `ls $reads_dir/*_R2_001.fastq` );
@@ -80,6 +82,8 @@ for ( my $i = 0; $i < @reads; $i += 2 )
                        "bcftools view -bvcg $name.mpileup > $name.bcf",
                        "bcftools view $name.bcf > $name.raw.MPILEUP.vcf",
                        "$GATK_pre VariantFiltration -R $ref --variant $name.raw.MPILEUP.vcf -o $name.filtered_variants.MPILEUP.vcf --mask $Gene_Panel --maskName PANEL",
+                       "cat $name.filtered_variants.MPILEUP.vcf | grep -P \"#+\" > $name.LOVD.PANEL.vcf",
+                       "cat $name.filtered_variants.MPILEUP.vcf | grep  -v  \"^#\" |  grep \"PANEL\" >> $name.LOVD.PANEL.vcf",
                        "cat $name.filtered_variants.MPILEUP.vcf | grep -P \"#+\" > $name.snvs.PANEL.MPILEUP.vcf",
                        "cat $name.filtered_variants.MPILEUP.vcf | grep  -v  \"^#\" | grep -v \"INDEL\" | grep \"PANEL\" >> $name.snvs.PANEL.MPILEUP.vcf",
                        "cat $name.filtered_variants.MPILEUP.vcf | grep -P  \"#+\" > $name.indel.PANEL.MPILEUP.vcf",
@@ -109,6 +113,7 @@ print join("\n",@steps);
     }
 
  #Intersection of GATK and MPILEUP snvs files 
+                      my $curdir  = getcwd();
                       my $ExecStatement = VcfCommand("$name.snvs.PANEL.MPILEUP.vcf","$name.snvs.PANEL.GATK.vcf","$name.intersect.snvs.vcf","vcf-isec ");
                       LinuxExecute($ExecStatement);
                        #Intersection of GATK and MPILEUP indel files 
@@ -117,6 +122,17 @@ print join("\n",@steps);
                        #Merge all snvs together
                       $ExecStatement = VcfCommand("$name.snvs.PANEL.GATK.vcf.gz","$name.snvs.PANEL.MPILEUP.vcf.gz","$name.All.snvs.vcf", "vcf-merge ");
                        LinuxExecute($ExecStatement);
+                       #The reason for this code is that LOVD needs a vcf file it can load. IF you merge the files together the vcf get a column header that LOVD cant
+                       #deal with,  so I see if any snvs or indel is in GATK but not in samtools file
+                       #Are there any GATK snvs not in mpileup
+                       $ExecStatement = "bgzip -f $name.LOVD.PANEL.vcf; tabix -p vcf $name.LOVD.PANEL.vcf.gz";
+                       LinuxExecute($ExecStatement);
+                       $ExecStatement = VcfCommand("$name.snvs.PANEL.GATK.vcf.gz","$name.LOVD.PANEL.vcf.gz","$name.GATK.snvs.diff.vcf", "vcf-isec -f -c ");
+                       LinuxExecute($ExecStatement);
+                       #Are there any GATK Indels not in mpileup
+                       $ExecStatement = VcfCommand("$name.indel.PANEL.GATK.vcf.gz","$name.LOVD.PANEL.vcf.gz","$name.GATK.indel.diff.vcf", "vcf-isec -f -c ");
+                       LinuxExecute($ExecStatement);
+                       system("$name.GATK.snvs.diff.vcf $name.GATK.indel.diff.vcf");
                        #Merge all indels together
                       LinuxExecute($ExecStatement);
                       $ExecStatement = VcfCommand("$name.indel.PANEL.GATK.vcf.gz","$name.indel.PANEL.MPILEUP.vcf.gz","$name.All.indel.vcf", "vcf-merge ");
@@ -155,6 +171,7 @@ print join("\n",@steps);
                       $ExecStatement ="perl /miseqdata/tools/annovar/summarize_annovar.pl  $name.FromOnlyOneCaller.indel.annovar.input.txt -buildver hg19 -outfile $name.FromOnlyOneCaller.indel -verdbsnp 137 -ver1000g 1000g2012apr -veresp 6500 -alltranscript -remove /miseqdata/tools/annovar/humandb/";
                       LinuxExecute($ExecStatement);
 my $curdir  = getcwd();
+system("python /miseqdata/GIT/pyWork27/Create_LOVD_vcf.py $name.LOVD.PANEL.MPILEUP.vcf $name.GATK.snvs.diff.vcf $name.GATK.indel.diff.vcf $curdir");
 system ( "python /miseqdata/GIT/pyWork27/CreateExcelAndCleanUp.py ".$curdir ); 
 };
 
@@ -214,8 +231,8 @@ sub VcfCommand
 	my $VcfCmd = shift;
 		
 print "\n";
-say "There ar emutation in file $VcfFile1 ".AnyMutationsInVCF_File($VcfFile1);
-say "There ar emutation in file $VcfFile2 ".AnyMutationsInVCF_File($VcfFile2);
+say "There are mutation in file $VcfFile1 ".AnyMutationsInVCF_File($VcfFile1);
+say "There are mutation in file $VcfFile2 ".AnyMutationsInVCF_File($VcfFile2);
 	
 	if (((AnyMutationsInVCF_File($VcfFile1)+0) and (AnyMutationsInVCF_File($VcfFile2)+0)))
 		{
